@@ -3,14 +3,14 @@ services:
     image: mongo:latest
     volumes:
       - ./mongo:/data/db
-    container_name: mongo
+    hostname: mongo
     restart: always
     networks:
       - nicoarch
 
   redis:
     image: redis:latest
-    container_name: redis
+    hostname: redis
     restart: always
     networks:
       - nicoarch
@@ -21,10 +21,10 @@ services:
     environment:
       - MONGO_URL=mongodb://mongo:27017/nicoarch
       - REDIS_URL=redis://redis:6379
-    container_name: app
+    hostname: app
     restart: always
     depends_on:
-      - db
+      - mongo
       - redis
     networks:
       - nicoarch
@@ -41,7 +41,7 @@ services:
       - NICONICO_PASSWORD=${NICONICO_PASSWORD}
     restart: always
     depends_on:
-      - db
+      - mongo
       - redis
     deploy:
       replicas: ${WORKER_COUNT:-1}

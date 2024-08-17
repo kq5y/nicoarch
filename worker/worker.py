@@ -116,8 +116,9 @@ def error(task_id, e):
 
 def main():
     while True:
-        task_id = redis_client.blpop("tasks", 0)[1]
+        task_id = redis_client.brpop("tasks")[1]
         task_id = task_id.decode('utf-8')
+        print(f"Processing task {task_id}")
         try:
             watchData, watchUUID, videoId = fetch(task_id)
             download(task_id, watchData, watchUUID, videoId)

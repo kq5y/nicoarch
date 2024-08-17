@@ -1,2 +1,4 @@
-./contents/*
+contents
+mongo
 venv
+.env
