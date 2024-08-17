@@ -1,0 +1,67 @@
+services:
+  mongo:
+    image: mongo:latest
+    volumes:
+      - ./mongo:/data/db
+    container_name: mongo
+    restart: always
+    networks:
+      - nicoarch
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    networks:
+      - nicoarch
+
+  app:
+    build:
+      context: ./app
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/nicoarch
+      - REDIS_URL=redis://redis:6379
+    container_name: app
+    restart: always
+    depends_on:
+      - db
+      - redis
+    networks:
+      - nicoarch
+
+  worker:
+    build:
+      context: ./worker
+    volumes:
+      - ./contents:/contents
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/nicoarch
+      - REDIS_URL=redis://redis:6379
+      - NICONICO_MAIL=${NICONICO_MAIL}
+      - NICONICO_PASSWORD=${NICONICO_PASSWORD}
+    restart: always
+    depends_on:
+      - db
+      - redis
+    deploy:
+      replicas: ${WORKER_COUNT:-1}
+    networks:
+      - nicoarch
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./contents:/contents
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    restart: always
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    depends_on:
+      - app
+      - worker
+    networks:
+      - nicoarch
+
+networks:
+  nicoarch:
+    driver: bridge
