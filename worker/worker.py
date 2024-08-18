@@ -1,11 +1,12 @@
 import os
 import uuid
+import time
 import requests
 
-from bson import ObjectId
 from niconico import NicoNico
 from pymongo import MongoClient
 from redis.client import Redis
+from bson.objectid import ObjectId
 
 MONGO_URL = os.environ.get('MONGO_URL')
 REDIS_URL = os.environ.get('REDIS_URL')
@@ -39,23 +40,23 @@ redis_client = Redis.from_url(REDIS_URL)
 
 mongo_client = MongoClient(MONGO_URL)
 mongo_db = mongo_client.get_database("nicoarch")
-mongo_tasks = mongo_db.get_collection("Task")
-mongo_videos = mongo_db.get_collection("Video")
-mongo_users = mongo_db.get_collection("User")
+mongo_tasks = mongo_db.get_collection("tasks")
+mongo_videos = mongo_db.get_collection("videos")
+mongo_users = mongo_db.get_collection("users")
 
 def fetch(task_id):
     task = mongo_tasks.find_one_and_update({
         "_id": ObjectId(task_id)
     }, {"$set": {
         "status": "fetching"
-    }}, return_document=True)
+    }})
     watchId = task.get("watchId")
     watchUUID = uuid.uuid3(uuid.NAMESPACE_URL, watchId)
     watchData = niconico_client.video.watch.get_watch_data(watchId)
     userData = niconico_client.user.get_user(str(watchData.owner.id_))
     ownerId = None
     if userData is not None:
-        userUUID = uuid.uuid3(uuid.NAMESPACE_URL, userData.id_)
+        userUUID = uuid.uuid3(uuid.NAMESPACE_URL, str(userData.id_))
         user_res = mongo_users.insert_one({
             "userId": userData.id_,
             "nickname": userData.nickname,
@@ -86,44 +87,54 @@ def fetch(task_id):
     return watchData, watchUUID, video.inserted_id
 
 def download(task_id, watchData, watchUUID, videoId):
-    mongo_tasks.find_one_and_update({
+    mongo_tasks.update_one({
         "_id": ObjectId(task_id)
     }, {"$set": {
         "status": "downloading",
         "videoId": videoId
     }})
     with open(f'/contents/image/thumbnail/{str(watchUUID)}.jpg', 'wb') as f:
-        b = requests.get(watchData.thumbnail.url)
+        b = requests.get(watchData.video.thumbnail.ogp)
         f.write(b.content)
     outputs = niconico_client.video.watch.get_outputs(watchData)
     best_output = next(iter(outputs))
     niconico_client.video.watch.download_video(watchData, best_output, "/contents/video/"+str(watchUUID)+".%(ext)s")
 
 def finish(task_id):
-    mongo_tasks.find_one_and_update({
+    mongo_tasks.update_one({
         "_id": ObjectId(task_id)
     }, {"$set": {
         "status": "completed"
     }})
 
 def error(task_id, e):
-    mongo_tasks.find_one_and_update({
+    mongo_tasks.update_one({
         "_id": ObjectId(task_id)
     }, {"$set": {
         "status": "failed",
         "error": str(e)
     }})
+    mongo_videos.delete_one({
+        "taskId": ObjectId(task_id)
+    })
 
 def main():
+    print("nicoarch worker started")
     while True:
-        task_id = redis_client.brpop("tasks")[1]
-        task_id = task_id.decode('utf-8')
-        print(f"Processing task {task_id}")
+        task = redis_client.lpop("tasks")
+        if task is None:
+            time.sleep(10)
+            continue
+        task_id = task.decode("utf-8")
         try:
+            print(f"Fetching task {task_id}")
             watchData, watchUUID, videoId = fetch(task_id)
+            print(f"Downloading task {task_id}")
             download(task_id, watchData, watchUUID, videoId)
+            print(f"Finishing task {task_id}")
             finish(task_id)
         except Exception as e:
+            print(f"Error task {task_id}", e)
             error(task_id, e)
 
 if __name__ == "__main__":

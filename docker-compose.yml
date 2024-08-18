@@ -20,7 +20,7 @@ services:
       context: ./app
     environment:
       - MONGO_URL=mongodb://mongo:27017/nicoarch
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:6379/0
     hostname: app
     restart: always
     depends_on:
@@ -36,7 +36,7 @@ services:
       - ./contents:/contents
     environment:
       - MONGO_URL=mongodb://mongo:27017/nicoarch
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:6379/0
       - NICONICO_MAIL=${NICONICO_MAIL}
       - NICONICO_PASSWORD=${NICONICO_PASSWORD}
     restart: always
