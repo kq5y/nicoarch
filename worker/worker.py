@@ -52,6 +52,9 @@ def fetch(task_id):
     }})
     watchId = task.get("watchId")
     watchUUID = uuid.uuid3(uuid.NAMESPACE_URL, watchId)
+    videoData = niconico_client.video.get_video(watchId)
+    if videoData is None:
+        raise ValueError("Video not found")
     watchData = niconico_client.video.watch.get_watch_data(watchId)
     userData = niconico_client.user.get_user(str(watchData.owner.id_))
     ownerId = None
@@ -81,6 +84,7 @@ def fetch(task_id):
         "ownerId": ownerId,
         "duration": watchData.video.duration,
         "description": watchData.video.description,
+        "shortDescription": videoData.short_description,
         "taskId": ObjectId(task_id),
         "contentId": str(watchUUID)
     })
