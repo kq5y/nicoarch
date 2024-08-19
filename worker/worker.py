@@ -135,6 +135,7 @@ def getting_comments(task_id, watchData, videoId):
     }})
     when_unix = int(time.time())
     main_min_no = 0
+    easy_min_no = 0
     owner_comments_fecthed = False
     is_finished = False
     comment_count = 0
@@ -163,10 +164,19 @@ def getting_comments(task_id, watchData, videoId):
                 comment_count += len(thread.comments)
                 insert_comments(thread.comments, videoId, thread.id_, thread.fork)
             elif thread.fork == "easy":
-                if len(thread.comments) <= 0:
+                if easy_min_no == 0:
+                    easy_min_no = thread.comments[-1].no + 1
+                comment_index = len(thread.comments) - 1
+                while comment_index >= 0:
+                    if thread.comments[comment_index].no < easy_min_no:
+                        break
+                    comment_index -= 1
+                comments = thread.comments[:comment_index+1]
+                if len(comments) <= 0:
                     continue
                 comment_count += len(thread.comments)
                 insert_comments(thread.comments, videoId, thread.id_, thread.fork)
+                easy_min_no = thread.comments[0].no
             else:
                 if main_min_no == 0:
                     main_min_no = thread.comments[-1].no + 1
