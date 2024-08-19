@@ -1,0 +1,22 @@
+services:
+  mongo:
+    image: mongo:latest
+    volumes:
+      - ./mongo:/data/db
+    ports:
+      - "27017:27017"
+    hostname: mongo
+    networks:
+      - nicoarch
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    hostname: redis
+    networks:
+      - nicoarch
+
+networks:
+  nicoarch:
+    driver: bridge
