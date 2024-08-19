@@ -108,6 +108,8 @@ def download(task_id, watchData, watchUUID, videoId):
     niconico_client.video.watch.download_video(watchData, best_output, "/contents/video/"+str(watchUUID)+".%(ext)s")
 
 def insert_comments(comments, videoId, threadId, threadFork):
+    if len(comments) <= 0:
+        return
     mongo_comments.insert_many([{
         "commentId": comment.id_,
         "body": comment.body,
@@ -139,6 +141,7 @@ def getting_comments(task_id, watchData, videoId):
     failed_count = 0
     thread_key = None
     while not is_finished:
+        comment_res = None
         try:
             comment_res = niconico_client.video.watch.get_comments(watchData, when=when_unix, thread_key=thread_key)
         except CommentAPIError as e:
@@ -179,7 +182,7 @@ def getting_comments(task_id, watchData, videoId):
                 comment_count += len(comments)
                 insert_comments(comments, videoId, thread.id_, thread.fork)
                 main_min_no = thread.comments[0].no
-                when_unix = datetime.fromisoformat(thread.comments[0].posted_at).timestamp()
+                when_unix = int(datetime.fromisoformat(thread.comments[0].posted_at).timestamp())
         mongo_tasks.update_one({
             "_id": ObjectId(task_id)
         }, {"$set": {
