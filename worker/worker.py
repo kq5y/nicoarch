@@ -5,6 +5,7 @@ from datetime import datetime
 import requests
 
 from niconico import NicoNico
+from niconico.exceptions import CommentAPIError
 from pymongo import MongoClient
 from redis.client import Redis
 from bson.objectid import ObjectId
@@ -136,8 +137,15 @@ def getting_comments(task_id, watchData, videoId):
     is_finished = False
     comment_count = 0
     failed_count = 0
+    thread_key = None
     while not is_finished:
-        comment_res = niconico_client.video.watch.get_comments(watchData, when=when_unix)
+        try:
+            comment_res = niconico_client.video.watch.get_comments(watchData, when=when_unix, thread_key=thread_key)
+        except CommentAPIError as e:
+            if e.message == "EXPIRED_TOKEN":
+                thread_key = niconico_client.video.watch.get_thread_key(videoId)
+                time.sleep(1)
+                continue
         if comment_res is None:
             if failed_count >= 5:
                 raise ValueError("Failed to get comments")
