@@ -174,8 +174,8 @@ def getting_comments(task_id, watchData, videoId):
                 comments = thread.comments[:comment_index+1]
                 if len(comments) <= 0:
                     continue
-                comment_count += len(thread.comments)
-                insert_comments(thread.comments, videoId, thread.id_, thread.fork)
+                comment_count += len(comments)
+                insert_comments(comments, videoId, thread.id_, thread.fork)
                 easy_min_no = thread.comments[0].no
             else:
                 if main_min_no == 0:
