@@ -1,6 +1,7 @@
 import os
 import uuid
 import time
+from datetime import datetime
 import requests
 
 from niconico import NicoNico
@@ -43,6 +44,7 @@ mongo_db = mongo_client.get_database("nicoarch")
 mongo_tasks = mongo_db.get_collection("tasks")
 mongo_videos = mongo_db.get_collection("videos")
 mongo_users = mongo_db.get_collection("users")
+mongo_comments = mongo_db.get_collection("comments")
 
 def fetch(task_id):
     task = mongo_tasks.find_one_and_update({
@@ -104,6 +106,81 @@ def download(task_id, watchData, watchUUID, videoId):
     best_output = next(iter(outputs))
     niconico_client.video.watch.download_video(watchData, best_output, "/contents/video/"+str(watchUUID)+".%(ext)s")
 
+def insert_comments(comments, videoId, threadId, threadFork):
+    mongo_comments.insert_many([{
+        "commentId": comment.id_,
+        "body": comment.body,
+        "commands": comment.commands,
+        "isPremium": comment.is_premium,
+        "nicoruCount": comment.nicoru_count,
+        "no": comment.no,
+        "postedAt": comment.posted_at,
+        "score": comment.score,
+        "source": comment.source,
+        "userId": comment.user_id,
+        "vposMs": comment.vpos_ms,
+        "videoId": videoId,
+        "threadId": threadId,
+        "fork": threadFork,
+    } for comment in comments])
+
+def getting_comments(task_id, watchData, videoId):
+    mongo_tasks.update_one({
+        "_id": ObjectId(task_id)
+    }, {"$set": {
+        "status": "comment"
+    }})
+    when_unix = int(time.time())
+    main_min_no = 0
+    owner_comments_fecthed = False
+    is_finished = False
+    comment_count = 0
+    failed_count = 0
+    while not is_finished:
+        comment_res = niconico_client.video.watch.get_comments(watchData, when=when_unix)
+        if comment_res is None:
+            if failed_count >= 5:
+                raise ValueError("Failed to get comments")
+            failed_count += 1
+            time.sleep(60)
+            continue
+        for thread in comment_res.threads:
+            if thread.fork == "owner":
+                if owner_comments_fecthed:
+                    continue
+                owner_comments_fecthed = True
+                comment_count += len(thread.comments)
+                insert_comments(thread.comments, videoId, thread.id_, thread.fork)
+            elif thread.fork == "easy":
+                if len(thread.comments) <= 0:
+                    continue
+                comment_count += len(thread.comments)
+                insert_comments(thread.comments, videoId, thread.id_, thread.fork)
+            else:
+                if main_min_no == 0:
+                    main_min_no = thread.comments[-1].no + 1
+                comment_index = len(thread.comments) - 1
+                while comment_index >= 0:
+                    if thread.comments[comment_index].no < main_min_no:
+                        break
+                    comment_index -= 1
+                comments = thread.comments[:comment_index+1]
+                if len(comments) <= 0:
+                    is_finished = True
+                    continue
+                comment_count += len(comments)
+                insert_comments(comments, videoId, thread.id_, thread.fork)
+                main_min_no = thread.comments[0].no
+                when_unix = datetime.fromisoformat(thread.comments[0].posted_at).timestamp()
+        mongo_tasks.update_one({
+            "_id": ObjectId(task_id)
+        }, {"$set": {
+            "commentCount": comment_count
+        }})
+        time.sleep(1)
+    return comment_count
+
+
 def finish(task_id):
     mongo_tasks.update_one({
         "_id": ObjectId(task_id)
@@ -135,6 +212,8 @@ def main():
             watchData, watchUUID, videoId = fetch(task_id)
             print(f"Downloading task {task_id}")
             download(task_id, watchData, watchUUID, videoId)
+            print(f"Getting Comments task {task_id}")
+            getting_comments(task_id, watchData, videoId)
             print(f"Finishing task {task_id}")
             finish(task_id)
         except Exception as e:
