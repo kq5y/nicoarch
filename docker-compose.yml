@@ -30,7 +30,7 @@ services:
     build:
       context: ./worker
     volumes:
-      - ./contents:/contents
+      - ${CONTENTS_DIR:-./contents}:/contents
     environment:
       - MONGO_URL=mongodb://mongo:27017/nicoarch
       - REDIS_URL=redis://redis:6379/0
@@ -47,7 +47,7 @@ services:
   nginx:
     image: nginx:latest
     volumes:
-      - ./contents:/contents
+      - ${CONTENTS_DIR:-./contents}:/contents
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     ports:
       - "${NGINX_PORT:-8080}:80"

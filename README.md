@@ -9,6 +9,7 @@
     `NICONICO_PASSWORD`: ニコニコ動画のパスワード
     `WORKER_COUNT`: workerの数 (コメント取得に難があるため1推奨)
     `NGINX_PORT`: ホストするポート番号(デフォルト: 8080)
+    `CONTENTS_DIR`: 動画ファイルや画像ファイルを保存するディレクトリ(デフォルト: ./contents)
 
 2. 下記コマンドを実行し、localhost:8080にアクセスすると使用できる。
 
