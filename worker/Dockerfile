@@ -1,12 +1,10 @@
 FROM python:3.12-slim
 
-WORKDIR /app
-
 RUN apt update && apt -y upgrade && apt -y install ffmpeg
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ADD https://github.com/tksnnx/nicoarch-worker.git /app
+WORKDIR /app
 
-COPY . .
+RUN pip install --no-cache-dir -r requirements.txt
 
 CMD ["python", "-u", "worker.py"]
