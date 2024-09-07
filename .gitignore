@@ -2,3 +2,4 @@ contents
 mongo
 venv
 .env
+.DS_Store

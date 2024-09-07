@@ -31,6 +31,7 @@ services:
       context: ./worker
     volumes:
       - ${CONTENTS_DIR:-./contents}:/contents
+      - ./worker/session:/app/session
     environment:
       - MONGO_URL=mongodb://mongo:27017/nicoarch
       - REDIS_URL=redis://redis:6379/0
