@@ -16,6 +16,8 @@ services:
   app:
     build:
       context: ./app
+    volumes:
+      - ${CONTENTS_DIR:-./contents}:/contents
     environment:
       - MONGO_URL=mongodb://mongo:27017/nicoarch
       - REDIS_URL=redis://redis:6379/0
